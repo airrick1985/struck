@@ -1,1 +1,655 @@
-<h1>hello world </h1>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>區權會報名表</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 載入 Noto Sans TC 字體 -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* 全域樣式 */
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f7f7f7;
+      color: #333;
+    }
+    h1, h2, h3 {
+      text-align: center;
+    }
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 0 10px;
+    }
+    /* 浮動標籤群組 */
+    .floating-group {
+      position: relative;
+      margin: 20px 0;
+    }
+    .floating-group input,
+    .floating-group select,
+    .floating-group textarea {
+      width: 100%;
+      padding: 14px 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #fff;
+      color: #666;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .floating-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    .floating-group input:focus,
+    .floating-group select:focus,
+    .floating-group textarea:focus {
+      border: 2px solid #0070c9;
+    }
+    .floating-group label {
+      position: absolute;
+      top: 50%;
+      left: 12px;
+      transform: translateY(-50%);
+      background: transparent;
+      padding: 0 4px;
+      color: #999;
+      pointer-events: none;
+      transition: all 0.2s;
+    }
+    /* 當 input 有內容或 focus 時，縮小並上移 */
+    .floating-group input:focus + label,
+    .floating-group input:not(:placeholder-shown) + label,
+    .floating-group select:focus + label,
+    .floating-group select:not([value=""])+ label,
+    .floating-group textarea:focus + label,
+    .floating-group textarea:not(:placeholder-shown) + label {
+      top: 0;
+      left: 8px;
+      font-size: 12px;
+      color: #0070c9;
+      background: #fff;
+    }
+    /* 按鈕樣式 */
+    .custom-button {
+      display: inline-block;
+      padding: 12px 20px;
+      font-size: 16px;
+      color: #0070c9;
+      background: #fff;
+      border: 1px solid #0070c9;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      margin: 5px;
+    }
+    .custom-button:hover {
+      background: #0070c9;
+      color: #fff;
+    }
+    /* 自訂 Radio 樣式 */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .radio-option {
+      position: relative;
+    }
+    .radio-option input[type="radio"] {
+      display: none;
+    }
+    .radio-option label {
+      display: block;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #fff;
+      color: #666;
+      cursor: pointer;
+      transition: border 0.2s, background 0.2s;
+    }
+    .radio-option input[type="radio"]:checked + label {
+      border: 2px solid #0070c9;
+      background: #e6f0ff;
+    }
+    /* 小尺寸 radio (50% 縮小) */
+    .radio-option.small label {
+      padding: 6px;
+      font-size: 14px;
+      border-radius: 5px;
+    }
+    /* Modal 共用樣式 - 移除內部滾動設定 */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      /* 移除 overflow: auto，改由外層 Google Sites 處理滾動 */
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 500px;
+      width: 90%;
+      text-align: center;
+      position: relative;
+    }
+    /* Canvas 簽名區 */
+    #signatureCanvas {
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #fff;
+      width: 100%;
+      height: 200px;
+      touch-action: none;
+    }
+    .modal-buttons {
+      margin-top: 10px;
+    }
+    /* 手機、平板自適應 (可根據需要調整) */
+    @media (max-width: 600px) {
+      .custom-button {
+        width: 100%;
+        box-sizing: border-box;
+      }
+    }
+    /* 報名截止訊息 */
+    .closed-message {
+      text-align: center;
+      font-size: 26px;
+      padding: 40px 20px;
+    }
+    /* 隱藏區塊 */
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <!-- 報名截止檢查 -->
+    <div id="registrationClosed" class="closed-message hidden">
+      區權會報名已截止<br>
+      如有區權會相關問題，請與富宇上城社區物業管理人員聯絡
+    </div>
+    
+    <!-- 報名表單 -->
+    <form id="registrationForm" class="hidden">
+      <!-- 標題 -->
+      <h1>富宇上城第一屆區分所有權人會議</h1>
+      
+      <!-- 戶別、地址、姓名 -->
+      <div class="floating-group">
+        <select id="householdSelect" required>
+          <option value="" disabled selected>請選擇戶別</option>
+          <!-- 選項將由 JS 代入 -->
+        </select>
+        <label for="householdSelect">選擇戶別</label>
+      </div>
+      <div class="floating-group">
+        <input type="text" id="addressInput" disabled placeholder=" ">
+        <label for="addressInput">地址</label>
+      </div>
+      <div class="floating-group">
+        <input type="text" id="ownerName" placeholder=" " required>
+        <label for="ownerName">產權人姓名</label>
+      </div>
+      <button type="button" id="confirmOwner" class="custom-button">確認</button>
+      
+      <!-- 當姓名驗證通過且時間戳記有值時，顯示「出席意願表」按鈕與提示文字 -->
+      <button type="button" id="pdfButton" class="custom-button hidden">出席意願表</button>
+      <small id="pdfInfo" class="hidden" style="margin-top:5px; font-size:14px; color:#666;">
+        您已完成出席意願表填寫，請點按查看，如有相關問題，請與富宇上城社區物業管理人員聯絡
+      </small>
+      
+      <!-- 若後台通道（管理人員密碼）則同時顯示「刪除」按鈕 -->
+      <button type="button" id="deleteButton" class="custom-button hidden" 
+              style="background: #CD5C5C; color: #fff; border-color: #CD5C5C;">
+        刪除
+      </button>
+      
+      <!-- 驗證通過且時間戳記為空值時顯示下列區塊 -->
+      <div id="formSections" class="hidden">
+        <!-- 小標題：出席意願調查表 -->
+        <h2>出席意願調查表</h2>
+        <div class="radio-group" id="attendanceRadio">
+          <div class="radio-option">
+            <input type="radio" id="attendA1" name="attendance" value="A1">
+            <label for="attendA1">本人將親自參加出席</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="attendA2" name="attendance" value="A2">
+            <label for="attendA2">本人不克前往參加，但有委託代理人</label>
+          </div>
+        </div>
+        <!-- 其餘調查表內容保持不變 -->
+        <div id="agentInfo" class="hidden">
+          <div class="floating-group">
+            <input type="text" id="agentAddress" placeholder=" ">
+            <label for="agentAddress">請輸入代理人住址</label>
+          </div>
+          <div class="floating-group">
+            <input type="text" id="agentPhone" placeholder=" ">
+            <label for="agentPhone">請輸入代理人電話</label>
+          </div>
+          <small style="display:block; margin-top:5px; font-size:14px; color:#666;">委託關係</small>
+          <div class="radio-group" id="agentRelationRadio">
+            <div class="radio-option small">
+              <input type="radio" id="relationA21" name="agentRelation" value="A21">
+              <label for="relationA21">配偶</label>
+            </div>
+            <div class="radio-option small">
+              <input type="radio" id="relationA22" name="agentRelation" value="A22">
+              <label for="relationA22">有行為能力之直系血親</label>
+            </div>
+            <div class="radio-option small">
+              <input type="radio" id="relationA23" name="agentRelation" value="A23">
+              <label for="relationA23">承租人</label>
+            </div>
+            <div class="radio-option small">
+              <input type="radio" id="relationA24" name="agentRelation" value="A24">
+              <label for="relationA24">本社區區分所有權人</label>
+            </div>
+          </div>
+          <button type="button" class="custom-button signature-btn" data-signature="agent">
+            點我簽名 (代理人)
+          </button>
+        </div>
+        
+        <h2>第一屆管理委員推薦</h2>
+        <div class="radio-group" id="committeeRadio">
+          <div class="radio-option">
+            <input type="radio" id="committeeB1" name="committee" value="B1">
+            <label for="committeeB1">本人願意參選第一屆管理委員</label>
+          </div>
+          <div id="selfNomination" class="hidden">
+            <div class="floating-group">
+              <textarea id="selfText" placeholder=" "></textarea>
+              <label for="selfText">自薦內容(簡單自述)</label>
+            </div>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="committeeB2" name="committee" value="B2">
+            <label for="committeeB2">本人無意願參選第一屆管理委員</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="committeeB3" name="committee" value="B3">
+            <label for="committeeB3">本人有推薦人選〈以本社區住戶為推薦範圍〉</label>
+          </div>
+          <div id="recommendation" class="hidden">
+            <div class="floating-group">
+              <select id="recommendHousehold">
+                <option value="" disabled selected>請選擇戶別</option>
+                <!-- 選項由 JS 填入 -->
+              </select>
+              <label for="recommendHousehold">推薦戶別</label>
+            </div>
+            <div class="floating-group">
+              <input type="text" id="recommendName" disabled placeholder=" ">
+              <label for="recommendName">姓名</label>
+            </div>
+            <div class="floating-group">
+              <textarea id="recommendText" placeholder=" "></textarea>
+              <label for="recommendText">推薦內容(簡單敘述)</label>
+            </div>
+          </div>
+        </div>
+        
+        <h2>區分所有權人會議提案</h2>
+        <div class="floating-group">
+          <textarea id="proposal" placeholder=" "></textarea>
+          <label for="proposal">提案內容</label>
+        </div>
+        <small>
+          1.本提案內容須為與區分所有權人會議或社區整體公共事務之建議事項為主。<br>
+          2.提出人請務必親自出席本次區分所有權人大會，俾利現場做補充說明。<br>
+          3.本提案將轉交建設公司研議辦理之。
+        </small>
+        
+        <h2>住戶簽名</h2>
+        <button type="button" class="custom-button signature-btn" data-signature="resident">
+          點我簽名 (住戶)
+        </button>
+        
+        <div class="floating-group">
+          <input type="email" id="emailInput" placeholder=" " required>
+          <label for="emailInput">請輸入您的 EMAIL</label>
+        </div>
+        
+        <button type="submit" class="custom-button">送出</button>
+        <div style="height:60px;"></div>
+      </div>
+    </form>
+  </div>
+  
+  <!-- 簽名 Modal -->
+  <div id="signatureModal" class="modal">
+    <div class="modal-content">
+      <canvas id="signatureCanvas"></canvas>
+      <div class="modal-buttons">
+        <button type="button" id="clearSignature" class="custom-button">清除</button>
+        <button type="button" id="saveSignature" class="custom-button">確認簽名</button>
+        <button type="button" id="closeSignatureModal" class="custom-button">關閉</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 錯誤提示 Modal -->
+  <div id="errorModal" class="modal">
+    <div class="modal-content">
+      <p id="errorMessage"></p>
+      <button type="button" id="closeErrorModal" class="custom-button">確定</button>
+    </div>
+  </div>
+  
+  <!-- 刪除確認 Modal -->
+  <div id="deleteConfirmModal" class="modal">
+    <div class="modal-content">
+      <p>確認要刪除出席意願表?</p>
+      <button type="button" id="confirmDelete" class="custom-button" 
+              style="background: #CD5C5C; color: #fff; border-color: #CD5C5C;">
+        確認
+      </button>
+      <button type="button" id="cancelDelete" class="custom-button">取消</button>
+    </div>
+  </div>
+  
+  <script>
+    // ========== 模擬資料 ==========
+    // 模擬戶別資料（後續請以試算表資料取代）
+    const households = {
+      "戶別1": { 
+        address: "台北市信義區松山路100號", 
+        ownerName: "王小明/林小華",
+        timestamp: "",       // 空值代表未報名
+        pdfUrl: ""           // 空值，代表沒有PDF
+      },
+      "戶別2": { 
+        address: "台北市大安區和平東路200號", 
+        ownerName: "陳大文",
+        timestamp: "2025/01/01 12:00",  // 有值代表已填寫時間戳記
+        pdfUrl: "https://example.com/attendance.pdf"  // 模擬出席意願表PDF URL
+      }
+    };
+    // 供推薦人選使用（此處以 households 為例）
+    const householdKeys = Object.keys(households);
+    
+    // 模擬報名截止時間 (格式：YYYY/MM/DD HH:MM)
+    const registrationDeadline = new Date("2025/12/31 23:59");
+    
+    // 定義後台通道管理人員密碼 (對應區權會系統選單F2)
+    const adminPassword = "23985071";
+    
+    // 用來儲存簽名圖檔 (前端暫存)
+    let agentSignatureData = null;
+    let residentSignatureData = null;
+    // 當前正在編輯哪個簽名區 (agent 或 resident)
+    let currentSignatureTarget = null;
+    
+    // ========== 初始化 ==========
+    document.addEventListener("DOMContentLoaded", function() {
+      // 檢查報名截止
+      const now = new Date();
+      if (now > registrationDeadline) {
+        document.getElementById("registrationClosed").classList.remove("hidden");
+      } else {
+        document.getElementById("registrationForm").classList.remove("hidden");
+      }
+      
+      // 填入戶別選單
+      const householdSelect = document.getElementById("householdSelect");
+      const recommendHousehold = document.getElementById("recommendHousehold");
+      householdKeys.forEach(function(key) {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = key;
+        householdSelect.appendChild(option);
+        
+        // 同步填入推薦戶別選單
+        if(recommendHousehold){
+          const option2 = document.createElement("option");
+          option2.value = key;
+          option2.textContent = key;
+          recommendHousehold.appendChild(option2);
+        }
+      });
+      
+      // 當戶別選擇變更，更新地址欄位
+      householdSelect.addEventListener("change", function() {
+        const sel = householdSelect.value;
+        if (households[sel]) {
+          document.getElementById("addressInput").value = households[sel].address;
+        } else {
+          document.getElementById("addressInput").value = "";
+        }
+      });
+      
+      // 確認產權人姓名按鈕
+      document.getElementById("confirmOwner").addEventListener("click", function() {
+        const sel = householdSelect.value;
+        const inputName = document.getElementById("ownerName").value.trim();
+        if (!sel || !inputName) {
+          showError("請選擇戶別並輸入產權人姓名");
+          return;
+        }
+        // 判斷是否為後台通道：若輸入值等於管理人員密碼，則為管理通道
+        if (inputName === adminPassword) {
+          // 管理通道，不檢查 ownerName 是否包含在戶別資料中
+          if (households[sel].timestamp !== "") {
+            document.getElementById("pdfButton").classList.remove("hidden");
+            document.getElementById("pdfInfo").classList.remove("hidden");
+            // 管理通道同時顯示「刪除」按鈕
+            document.getElementById("deleteButton").classList.remove("hidden");
+            document.getElementById("formSections").classList.add("hidden");
+          } else {
+            // 若時間戳記為空，則顯示後續表單
+            document.getElementById("pdfButton").classList.add("hidden");
+            document.getElementById("pdfInfo").classList.add("hidden");
+            document.getElementById("deleteButton").classList.add("hidden");
+            document.getElementById("formSections").classList.remove("hidden");
+          }
+        } else {
+          // 非管理通道：驗證輸入的姓名是否為該戶資料的一部分
+          if (households[sel].ownerName.indexOf(inputName) === -1) {
+            showError("姓名、戶別不正確，請輸入正確產權人姓名");
+            return;
+          } else {
+            if (households[sel].timestamp !== "") {
+              document.getElementById("pdfButton").classList.remove("hidden");
+              document.getElementById("pdfInfo").classList.remove("hidden");
+              document.getElementById("formSections").classList.add("hidden");
+            } else {
+              document.getElementById("pdfButton").classList.add("hidden");
+              document.getElementById("pdfInfo").classList.add("hidden");
+              document.getElementById("formSections").classList.remove("hidden");
+            }
+          }
+        }
+        // 鎖定戶別與姓名欄位
+        householdSelect.disabled = true;
+        document.getElementById("ownerName").disabled = true;
+      });
+      
+      // 點擊出席意願表按鈕：以新視窗開啟該戶別的PDF URL
+      document.getElementById("pdfButton").addEventListener("click", function() {
+        const sel = householdSelect.value;
+        if (households[sel] && households[sel].pdfUrl) {
+          window.open(households[sel].pdfUrl, "_blank");
+        } else {
+          showError("該戶別尚未提供出席意願表PDF");
+        }
+      });
+      
+      // 刪除按鈕事件 (後台通道)：點擊後顯示刪除確認 Modal
+      document.getElementById("deleteButton").addEventListener("click", function() {
+        document.getElementById("deleteConfirmModal").style.display = "flex";
+      });
+      
+      // 刪除確認 Modal 事件：確認執行刪除，取消則關閉 Modal
+      document.getElementById("confirmDelete").addEventListener("click", function() {
+        deleteData();
+        document.getElementById("deleteConfirmModal").style.display = "none";
+      });
+      document.getElementById("cancelDelete").addEventListener("click", function() {
+        document.getElementById("deleteConfirmModal").style.display = "none";
+      });
+      
+      // 出席意願 radio 變更
+      document.getElementById("attendanceRadio").addEventListener("change", function(e) {
+        const value = document.querySelector('input[name="attendance"]:checked').value;
+        if (value === "A2") {
+          document.getElementById("agentInfo").classList.remove("hidden");
+        } else {
+          document.getElementById("agentInfo").classList.add("hidden");
+        }
+      });
+      
+      // 管理委員推薦 radio 變更
+      document.getElementById("committeeRadio").addEventListener("change", function(e) {
+        const value = document.querySelector('input[name="committee"]:checked').value;
+        if (value === "B1") {
+          document.getElementById("selfNomination").classList.remove("hidden");
+          document.getElementById("recommendation").classList.add("hidden");
+        } else if (value === "B3") {
+          document.getElementById("recommendation").classList.remove("hidden");
+          document.getElementById("selfNomination").classList.add("hidden");
+        } else {
+          document.getElementById("selfNomination").classList.add("hidden");
+          document.getElementById("recommendation").classList.add("hidden");
+        }
+      });
+      
+      // 簽名按鈕事件
+      const signatureButtons = document.querySelectorAll(".signature-btn");
+      signatureButtons.forEach(function(btn) {
+        btn.addEventListener("click", function() {
+          currentSignatureTarget = btn.getAttribute("data-signature");
+          openSignatureModal();
+        });
+      });
+      
+      // Modal 按鈕事件
+      document.getElementById("closeSignatureModal").addEventListener("click", closeSignatureModal);
+      document.getElementById("clearSignature").addEventListener("click", clearCanvas);
+      document.getElementById("saveSignature").addEventListener("click", saveSignature);
+      
+      document.getElementById("closeErrorModal").addEventListener("click", function() {
+        document.getElementById("errorModal").style.display = "none";
+      });
+      
+      // 簽名 canvas 初始化
+      initSignatureCanvas();
+      
+      // 表單送出事件（此處僅示範，後續依需求整合後端）
+      document.getElementById("registrationForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        alert("送出表單，請在後端補充相關邏輯");
+      });
+    });
+    
+    // 刪除功能 (後端資料尚未完成)
+    function deleteData() {
+      // 此處僅示範 alert，實際上會將該戶別相關欄位寫入後端
+      alert("刪除功能尚未實作，將寫入後端");
+    }
+    
+    // ========== 錯誤 Modal ==========
+    function showError(msg) {
+      document.getElementById("errorMessage").textContent = msg;
+      document.getElementById("errorModal").style.display = "flex";
+    }
+    
+    // ========== 簽名 Modal 與 Canvas ==========
+    let canvas, ctx, drawing = false, lastPos = { x: 0, y: 0 };
+    function initSignatureCanvas() {
+      canvas = document.getElementById("signatureCanvas");
+      ctx = canvas.getContext("2d");
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      
+      // 滑鼠事件
+      canvas.addEventListener("mousedown", function(e) {
+        drawing = true;
+        lastPos = getMousePos(canvas, e);
+      });
+      canvas.addEventListener("mousemove", function(e) {
+        if (!drawing) return;
+        let mousePos = getMousePos(canvas, e);
+        drawLine(lastPos, mousePos);
+        lastPos = mousePos;
+      });
+      canvas.addEventListener("mouseup", function() { drawing = false; });
+      canvas.addEventListener("mouseout", function() { drawing = false; });
+      
+      // 觸控事件
+      canvas.addEventListener("touchstart", function(e) {
+        e.preventDefault();
+        drawing = true;
+        lastPos = getTouchPos(canvas, e);
+      });
+      canvas.addEventListener("touchmove", function(e) {
+        e.preventDefault();
+        if (!drawing) return;
+        let touchPos = getTouchPos(canvas, e);
+        drawLine(lastPos, touchPos);
+        lastPos = touchPos;
+      });
+      canvas.addEventListener("touchend", function(e) {
+        e.preventDefault();
+        drawing = false;
+      });
+    }
+    function getMousePos(canvas, evt) {
+      let rect = canvas.getBoundingClientRect();
+      return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+    }
+    function getTouchPos(canvas, evt) {
+      let rect = canvas.getBoundingClientRect();
+      let touch = evt.touches[0];
+      return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    }
+    function drawLine(from, to) {
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+    }
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    function openSignatureModal() {
+      clearCanvas();
+      document.getElementById("signatureModal").style.display = "flex";
+    }
+    function closeSignatureModal() {
+      document.getElementById("signatureModal").style.display = "none";
+    }
+    function saveSignature() {
+      const dataURL = canvas.toDataURL("image/png");
+      if (currentSignatureTarget === "agent") {
+        agentSignatureData = dataURL;
+        alert("已儲存代理人簽名");
+      } else if (currentSignatureTarget === "resident") {
+        residentSignatureData = dataURL;
+        alert("已儲存住戶簽名");
+      }
+      closeSignatureModal();
+    }
+  </script>
+</body>
+</html>
